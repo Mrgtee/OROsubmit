@@ -51,6 +51,14 @@ export function getErrorMessage(error: unknown) {
     return error.message
   }
 
+  if (typeof error === 'object' && error !== null) {
+    const message = (error as { message?: unknown }).message
+
+    if (typeof message === 'string' && message.trim()) {
+      return message
+    }
+  }
+
   return 'Something went wrong. Please try again.'
 }
 

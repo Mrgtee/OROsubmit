@@ -8,11 +8,21 @@ drop table if exists public.campaigns cascade;
 create table if not exists public.oro_settings (
   id boolean primary key default true check (id),
   title text not null default 'Submit YouTube links',
-  is_open boolean not null default true,
-  max_submissions integer not null default 1 check (max_submissions > 0),
+  is_open boolean not null default false,
+  max_submissions integer not null default 0 check (max_submissions >= 0),
   admin_password_hash text not null default extensions.crypt('oro', extensions.gen_salt('bf')),
   updated_at timestamptz not null default now()
 );
+
+alter table public.oro_settings
+  alter column is_open set default false,
+  alter column max_submissions set default 0;
+
+alter table public.oro_settings
+  drop constraint if exists oro_settings_max_submissions_check;
+
+alter table public.oro_settings
+  add constraint oro_settings_max_submissions_check check (max_submissions >= 0);
 
 insert into public.oro_settings (id)
 values (true)
@@ -215,7 +225,7 @@ begin
     raise exception 'Wrong password.';
   end if;
 
-  next_max := greatest(input_max_submissions, 1);
+  next_max := greatest(coalesce(input_max_submissions, 0), 0);
 
   select count(*)
   into current_count
@@ -259,8 +269,8 @@ begin
 
   update public.oro_settings
   set title = 'Submit YouTube links',
-      is_open = true,
-      max_submissions = 1,
+      is_open = false,
+      max_submissions = 0,
       updated_at = now()
   where id = true;
 
@@ -269,7 +279,7 @@ begin
     s.title,
     s.is_open,
     s.max_submissions,
-    0
+    0::integer
   from public.oro_settings s
   where s.id = true;
 end;

@@ -18,8 +18,34 @@ import { getErrorMessage, isValidHttpUrl, normalizeUrl } from './lib/utils'
 const fallbackPortal: PortalState = {
   title: 'Submit YouTube links',
   isOpen: false,
-  maxSubmissions: 1,
+  maxSubmissions: 0,
   submissionCount: 0,
+}
+
+const adminPasswordStorageKey = 'orosubmit-admin-password'
+
+function readStoredAdminPassword() {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+
+  return window.sessionStorage.getItem(adminPasswordStorageKey) ?? ''
+}
+
+function storeAdminPassword(password: string) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.sessionStorage.setItem(adminPasswordStorageKey, password)
+}
+
+function clearStoredAdminPassword() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.sessionStorage.removeItem(adminPasswordStorageKey)
 }
 
 function App() {
@@ -35,7 +61,7 @@ function App() {
   const [password, setPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [draftTitle, setDraftTitle] = useState(fallbackPortal.title)
-  const [draftMaxSubmissions, setDraftMaxSubmissions] = useState('1')
+  const [draftMaxSubmissions, setDraftMaxSubmissions] = useState('0')
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(hasSupabaseConfig)
   const [setupError, setSetupError] = useState('')
@@ -47,17 +73,6 @@ function App() {
   const syncDrafts = (nextPortal: PortalState) => {
     setDraftTitle(nextPortal.title)
     setDraftMaxSubmissions(String(nextPortal.maxSubmissions))
-  }
-
-  const refreshPortal = async () => {
-    if (!hasSupabaseConfig) {
-      setLoading(false)
-      return
-    }
-
-    const nextPortal = await loadPortalState()
-    setPortal(nextPortal)
-    syncDrafts(nextPortal)
   }
 
   const refreshAdminSubmissions = async (passwordToUse = adminPassword) => {
@@ -73,7 +88,30 @@ function App() {
   useEffect(() => {
     async function loadInitialState() {
       try {
-        await refreshPortal()
+        if (!hasSupabaseConfig) {
+          setLoading(false)
+          return
+        }
+
+        const nextPortal = await loadPortalState()
+        setPortal(nextPortal)
+        setDraftTitle(nextPortal.title)
+        setDraftMaxSubmissions(String(nextPortal.maxSubmissions))
+
+        const storedPassword = readStoredAdminPassword()
+
+        if (storedPassword) {
+          const isValidPassword = await verifyAdminPassword(storedPassword)
+
+          if (isValidPassword) {
+            setAdminPassword(storedPassword)
+            setAdminAuthed(true)
+            setAdminVisible(true)
+            setAdminSubmissions(await loadAdminSubmissions(storedPassword))
+          } else {
+            clearStoredAdminPassword()
+          }
+        }
       } catch (error) {
         setSetupError(getErrorMessage(error))
       } finally {
@@ -158,6 +196,7 @@ function App() {
 
       setAdminPassword(password)
       setAdminAuthed(true)
+      storeAdminPassword(password)
       setPassword('')
       await refreshAdminSubmissions(password)
     } catch (error) {
@@ -172,12 +211,13 @@ function App() {
     setAdminAuthed(false)
     setAdminVisible(false)
     setAdminSubmissions([])
+    clearStoredAdminPassword()
   }
 
   const updateSettings = async (nextIsOpen: boolean) => {
     const maxSubmissions = Math.max(
-      1,
-      Number.parseInt(draftMaxSubmissions, 10) || 1,
+      0,
+      Number.parseInt(draftMaxSubmissions, 10) || 0,
     )
 
     setBusy(true)
@@ -329,7 +369,7 @@ function App() {
                   <span>Links needed</span>
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     step="1"
                     value={draftMaxSubmissions}
                     onChange={(event) =>
