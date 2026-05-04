@@ -74,7 +74,8 @@ begin
     raise exception 'Wrong password.';
   end if;
 
-  delete from public.oro_submissions;
+  delete from public.oro_submissions
+  where true;
 
   update public.oro_settings
   set title = 'Submit YouTube links',
