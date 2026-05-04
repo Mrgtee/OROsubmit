@@ -1,0 +1,50 @@
+:root {
+  --text: #18353b;
+  font-family: 'Inter Tight', sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background:
+    linear-gradient(135deg, rgba(255, 127, 53, 0.22), transparent 34%),
+    linear-gradient(225deg, rgba(123, 202, 192, 0.28), transparent 34%),
+    #f6f1e8;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100svh;
+  color: var(--text);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 0;
+}
+
+a {
+  text-decoration: none;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+h1 {
+  font-family: 'Syne', sans-serif;
+  letter-spacing: 0;
+}
