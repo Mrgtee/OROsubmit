@@ -20,6 +20,10 @@ npm run dev
 
 The default admin password is `oro`.
 
+## Admin YouTube Queue
+
+Use `Play all on YouTube` to open submitted YouTube links as one ordered watch list. Non-YouTube links are skipped.
+
 ## Change Admin Password
 
 Run this in Supabase SQL Editor, replacing `your-new-password`:

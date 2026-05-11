@@ -13,7 +13,13 @@ import {
   type PortalState,
 } from './lib/portalApi'
 import { hasSupabaseConfig, supabaseSetupMessage } from './lib/supabase'
-import { getErrorMessage, isValidHttpUrl, normalizeUrl } from './lib/utils'
+import {
+  buildYouTubeQueueUrl,
+  getErrorMessage,
+  getYouTubeVideoId,
+  isValidHttpUrl,
+  normalizeUrl,
+} from './lib/utils'
 
 const fallbackPortal: PortalState = {
   title: 'Submit YouTube links',
@@ -65,8 +71,16 @@ function App() {
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(hasSupabaseConfig)
   const [setupError, setSetupError] = useState('')
+  const [youtubeQueueMessage, setYoutubeQueueMessage] = useState('')
 
   const normalizedLink = useMemo(() => normalizeUrl(link), [link])
+  const youtubeVideoIds = useMemo(
+    () =>
+      adminSubmissions
+        .map((submission) => getYouTubeVideoId(submission.link))
+        .filter((videoId): videoId is string => Boolean(videoId)),
+    [adminSubmissions],
+  )
   const submissionsFull = portal.submissionCount >= portal.maxSubmissions
   const canSubmit = portal.isOpen && !submissionsFull && hasSupabaseConfig
 
@@ -196,6 +210,7 @@ function App() {
 
       setAdminPassword(password)
       setAdminAuthed(true)
+      setYoutubeQueueMessage('')
       storeAdminPassword(password)
       setPassword('')
       await refreshAdminSubmissions(password)
@@ -211,6 +226,7 @@ function App() {
     setAdminAuthed(false)
     setAdminVisible(false)
     setAdminSubmissions([])
+    setYoutubeQueueMessage('')
     clearStoredAdminPassword()
   }
 
@@ -222,6 +238,7 @@ function App() {
 
     setBusy(true)
     setPasswordError('')
+    setYoutubeQueueMessage('')
 
     try {
       const nextPortal = await savePortalSettings(
@@ -254,11 +271,46 @@ function App() {
       setLink('')
       setSubmissionError('')
       setSubmitted(false)
+      setYoutubeQueueMessage('')
     } catch (error) {
       setPasswordError(getErrorMessage(error))
     } finally {
       setBusy(false)
     }
+  }
+
+  const handlePlayAllOnYouTube = () => {
+    setPasswordError('')
+
+    if (adminSubmissions.length === 0) {
+      setYoutubeQueueMessage('No submissions yet.')
+      return
+    }
+
+    if (youtubeVideoIds.length === 0) {
+      setYoutubeQueueMessage('No YouTube video links found.')
+      return
+    }
+
+    const queueUrl = buildYouTubeQueueUrl(youtubeVideoIds)
+    const openedWindow = window.open(queueUrl, '_blank', 'noopener,noreferrer')
+
+    if (!openedWindow) {
+      setYoutubeQueueMessage('Allow popups, then click Play all on YouTube again.')
+      return
+    }
+
+    const skippedCount = adminSubmissions.length - youtubeVideoIds.length
+    const skippedMessage =
+      skippedCount > 0
+        ? ` Skipped ${skippedCount} non-YouTube link${skippedCount === 1 ? '' : 's'}.`
+        : ''
+
+    setYoutubeQueueMessage(
+      `Opened ${youtubeVideoIds.length} YouTube link${
+        youtubeVideoIds.length === 1 ? '' : 's'
+      }.${skippedMessage}`,
+    )
   }
 
   return (
@@ -411,6 +463,14 @@ function App() {
                   <button
                     className="secondary-button"
                     type="button"
+                    onClick={handlePlayAllOnYouTube}
+                    disabled={busy || adminSubmissions.length === 0}
+                  >
+                    Play all on YouTube
+                  </button>
+                  <button
+                    className="secondary-button"
+                    type="button"
                     onClick={() => void handleReset()}
                     disabled={busy}
                   >
@@ -420,6 +480,10 @@ function App() {
                     Logout
                   </button>
                 </div>
+
+                {youtubeQueueMessage ? (
+                  <p className="message message-submitted">{youtubeQueueMessage}</p>
+                ) : null}
               </div>
 
               <div className="table-wrap">

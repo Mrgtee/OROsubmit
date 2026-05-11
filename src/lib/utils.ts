@@ -32,6 +32,54 @@ export function isValidHttpUrl(value: string) {
   }
 }
 
+function cleanYouTubeVideoId(value: string) {
+  const candidate = value.trim().split(/[?&#/]/)[0]
+
+  return /^[a-zA-Z0-9_-]{11}$/.test(candidate) ? candidate : null
+}
+
+export function getYouTubeVideoId(value: string) {
+  try {
+    const url = new URL(value)
+    const hostname = url.hostname.replace(/^www\./, '').toLowerCase()
+
+    if (hostname === 'youtu.be') {
+      return cleanYouTubeVideoId(url.pathname.split('/').filter(Boolean)[0] ?? '')
+    }
+
+    const isYouTubeHost =
+      hostname === 'youtube.com' ||
+      hostname === 'm.youtube.com' ||
+      hostname === 'music.youtube.com' ||
+      hostname === 'youtube-nocookie.com'
+
+    if (!isYouTubeHost) {
+      return null
+    }
+
+    const watchId = url.searchParams.get('v')
+
+    if (watchId) {
+      return cleanYouTubeVideoId(watchId)
+    }
+
+    const [firstSegment, secondSegment] = url.pathname.split('/').filter(Boolean)
+    const videoPathSegments = new Set(['embed', 'live', 'shorts', 'v'])
+
+    if (firstSegment && videoPathSegments.has(firstSegment) && secondSegment) {
+      return cleanYouTubeVideoId(secondSegment)
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
+export function buildYouTubeQueueUrl(videoIds: string[]) {
+  return `https://www.youtube.com/watch_videos?video_ids=${videoIds.join(',')}`
+}
+
 export function formatDate(value: string) {
   return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',
